@@ -1,0 +1,44 @@
+name: Monitor Dobropillia Commission Decisions
+
+on:
+  schedule:
+    # Mon–Thu, Sat–Sun: once daily at 18:00 Kyiv time (15:00 UTC, summer UTC+3)
+    - cron: '0 15 * * 0,1,2,3,4,6'
+    # Friday: every hour from 10:00 to 22:00 Kyiv (07:00–19:00 UTC)
+    - cron: '0 7-19 * * 5'
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run monitor
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID:   ${{ secrets.CHAT_ID }}
+        run: pnpm start
+
+      - name: Commit updated seen_pdfs.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_pdfs.json
+          git diff --cached --quiet || git commit -m "chore: update seen_pdfs.json [skip ci]"
+          git push
